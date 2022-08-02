@@ -1,0 +1,95 @@
+#
+#     __________________________________________________________
+#    / /                                                   / /\ \
+#    \_\___________________________________________________\_\/ /
+#        / /    _____    __            __                    / /
+#       / /    / ____\  / /           /_/          /\       / /
+#      / /    / /__    / /___  ___   __  ______ __/ /_     / /
+#     / /     \___ \  /   __/ / __\ / / / __  //_  __/    / /
+#    / /     ____/ / / /\ \  / /   / / / /_/ /  / /      / /
+#   / /     \_____/ /_/ /_/ /_/   /_/ / ____/  /_/      / /__
+#  / /    ========================== / / ==========    / / \ \
+# | |                               /_/               | |   | |
+#  \_\_________________________________________________\_\_/_/
+#
+#
+#	Naver : baebine@naver.com
+#	Github : https://github.com/Baebin
+#
+#	저작권은 PieBin에게 있으며 개발자의 동의없이 상업적인 용도로 이용 및 무단 배포하는 행위를 금지합니다.
+#
+
+#
+# Environment:
+#	- Skript 2.6.3
+#	- SkBee 1.17.3
+#	- SkQuery 4.1.7
+#
+
+
+options:
+	P: &c[ &ePieBin &c]&f
+
+	Boom: last spawned armor stand
+	Sound: minecraft:block.note_block.bit
+
+function getBoom() :: item:
+	return Tnt named "{@P} &b접착 폭탄" with the lore "&7> 우클릭시 폭탄을 던집니다."
+
+function playBoomSound(boom: entity, pitch: number):
+	play sound "{@Sound}" with volume 2.0 and pitch {_Pitch} to players in radius 15 of {_Boom}
+
+command /getBoom():
+	trigger:
+		player is op
+		give 1 of getBoom() to player
+
+on right click:
+	1 of player's tool is getBoom()
+	cancel event
+	remove 1 of player's tool from player's tool
+
+	set {_Loc} to block at player's location
+
+	spawn armor stand at {_Loc}
+	set {_Stand.Tel} to {@Boom}
+	add "{Invisible:1, Small:1}" to nbt of {@Boom}
+
+	spawn armor stand at {_Loc}
+	set helmet of {@Boom} to Tnt
+	add "{Invisible:1, Marker:1, Small:1}" to nbt of {@Boom}
+
+	push {_Stand.Tel} in direction of player of with speed 2
+
+	while {_Stand.Tel} is alive:
+		add 1 to {_Loop}
+		loop all blocks in radius 0.8 around {_Stand.Tel}:
+			loop-block isn't Air
+			kill {_Stand.Tel}
+			teleport {@Boom} to location 0.2 behind location 0.3 up loop-block's location
+
+			# 2 sec
+			loop 2 * 2 times:
+				playBoomSound({@Boom}, 1.0)
+				wait 10 ticks
+
+			# 2 sec
+			loop 2 * 4 times:
+				playBoomSound({@Boom}, 1.0)
+				wait 5 ticks
+
+			# 1 sec
+			loop 1 * 10 times:
+				playBoomSound({@Boom}, 1.0)
+				wait 2 ticks
+
+			# 0.5 sec
+			playBoomSound({@Boom}, 0.5)
+			wait 10 ticks
+
+			create an explosion of force 3.0 at {@Boom}
+			stop loop
+		teleport {@Boom} to {_Stand.Tel}
+		mod({_Loop},10)
+		wait a tick
+	kill {@Boom}
