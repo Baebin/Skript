@@ -7,7 +7,7 @@ ___
 
 ## Systems
 | Version | System | Code |
-| 1.0 | [Boom](https://github.com/Baebin/Skript/tree/main/Boom) | [Piebin Boom.sk]()|
+| 1.0 | [Boom](https://github.com/Baebin/Skript/tree/main/Boom) | [Piebin Boom.sk](https://github.com/Baebin/Skript/blob/main/Boom/Piebin%20Boom.sk) |
 
 ___
 
