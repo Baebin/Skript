@@ -11,6 +11,7 @@ ___
 | 1.0 | [Boom](https://github.com/Baebin/Skript/releases/tag/Boom) | [Piebin Boom.sk](https://github.com/Baebin/Skript/blob/main/Boom/Piebin%20Boom.sk) |
 | 1.0 | [Omok](https://github.com/Baebin/Skript/releases/tag/Omok) | [Piebin Omok.sk](https://github.com/Baebin/Skript/blob/main/Omok/Piebin%20Omok.sk) |
 
+
 ___
 
 ## Environment
