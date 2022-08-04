@@ -1,0 +1,469 @@
+#
+#     __________________________________________________________
+#    / /                                                   / /\ \
+#    \_\___________________________________________________\_\/ /
+#        / /    _____    __            __                    / /
+#       / /    / ____\  / /           /_/          /\       / /
+#      / /    / /__    / /___  ___   __  ______ __/ /_     / /
+#     / /     \___ \  /   __/ / __\ / / / __  //_  __/    / /
+#    / /     ____/ / / /\ \  / /   / / / /_/ /  / /      / /
+#   / /     \_____/ /_/ /_/ /_/   /_/ / ____/  /_/      / /__
+#  / /    ========================== / / ==========    / / \ \
+# | |                               /_/               | |   | |
+#  \_\_________________________________________________\_\_/_/
+#
+#
+#	Naver : baebine@naver.com
+#	Github : https://github.com/Baebin
+#
+#	저작권은 PieBin에게 있으며 개발자의 동의없이 상업적인 용도로 이용 및 무단 배포하는 행위를 금지합니다.
+#
+
+#
+# Environment:
+#	- Skript 2.6
+#	- Skellett 2.0.2
+#	- skUtilities 0.9.2
+#
+
+
+options:
+	P: &c[ &ePieBin &c]&f
+
+	DB: plugins\Skript\scripts\DB\Omak.yml
+	Inven: {_p}'s inventory
+	Yml.Inven: "data.inventory.%{_p}%"
+
+	# GUI Item
+	Item.Black: Black Wool
+	Item.White: White Wool
+	Item.Background: Light Gray Stained Glass Pane named " "
+
+	Item.Red: Red Stained Glass Pane
+	Item.Green: Lime Stained Glass Pane
+
+	# Sound
+	Sound.Invite: block.note_block.bell
+	Sound.Stone: block.note_block.cow_bell
+	Sound.Turn: block.note_block.chime
+
+variables:
+	{piebin::omok} = 1.0
+
+
+# = = = = = System Functions = = = = =
+
+function omok_getCmdInfo() :: texts:
+	add "{@P} /오목 수락" to {_i::*}
+	add "{@P} /오목 취소" to {_i::*}
+	add "{@P} /오목 초대 <player>" to {_i::*}
+	return {_i::*}
+
+function omok_reload():
+	clear {omok.allow::*}
+	clear {omok.game::*}
+	clear {omok.game.end::*}
+	clear {omok.game.turn::*}
+	clear {omok.game.click::*}
+
+
+# = = = = = Inventory Functions = = = = =
+
+function omok_clearInventory(p: player):
+	loop 36 times:
+		set slot (loop-num)-1 of {@Inven} to Air
+
+function omok_saveInventory(p: player):
+	clear yml list {@Yml.Inven} from file "{@DB}"
+	loop 36 times:
+		set {_item} to slot (loop-num)-1 of {@Inven}
+		{_item} isn't Air
+		set yml value "data.inventory.%{_p}%.%loop-num%" from file "{@DB}" to {_item}
+		set slot (loop-num)-1 of {@Inven} to Air
+
+function omok_loadInventory(p: player):
+	yml {@Yml.Inven} in file "{@DB}" exists
+	omok_clearInventory({_p})
+	loop (yml nodes {@Yml.Inven} from file "{@DB}"):
+		set {_index} to loop-value
+		set {_item} to yml value "data.inventory.%{_p}%.%{_Index}%" from file "{@DB}"
+		set slot ({_index} parsed as int)-1 of {@Inven} to {_item}
+	clear yml list {@Yml.Inven} from file "{@DB}"
+
+
+# = = = = = Util Functions = = = = =
+
+function omok_playSound(p: player, sound: text, pitch: number):
+	if {_sound} is "Invite":
+		play sound "{@Sound.Invite}" with volume 1.0 and pitch {_pitch} to {_p}
+	if {_sound} is "Stone":
+		play sound "{@Sound.Stone}" with volume 1.0 and pitch {_pitch} to {_p}
+	if {_sound} is "Turn":
+		play sound "{@Sound.Turn}" with volume 1.0 and pitch {_pitch} to {_p}
+
+
+# = = = = = Game Util Functions = = = = =
+
+function omok_isPlay(p: player) :: boolean:
+	if {omok.game::%{_p}%} is set:
+		return true
+	if {omok.game::*} contains {_p}:
+		return true
+	return false
+
+function omok_getAdmin(p: player) :: offlineplayer:
+	if {omok.game::%{_p}%} is set:
+		return {_p}
+	if {omok.game::*} contains {_p}:
+		loop {omok.game::*}:
+			loop-value is {_p}
+			return loop-index parsed as offlineplayer
+	return {_p}
+
+function omok_getBoard(p: player, index: num) :: object:
+	set {_admin} to omok_getAdmin({_p})
+	return {omok.game::%{_admin}%::%{_index}%}
+
+function omok_getStone(p: player) :: item:
+	if omok_getAdmin({_p}) is {_p}:
+		return {@Item.Black} named "&a%{_p}%"
+	return {@Item.White} named "&a%{_p}%"
+
+function omok_hasInvite(p: player) :: boolean:
+	if {omok.allow::%{_p}%} is set:
+		return true
+	return false
+
+function omok_clearInvite(p: player):
+	remove {_p} from {omok.allow::*}
+	clear {omok.allow::%{_p}%}
+
+function omok_clearGame(p: player):
+	set {_p2} to omok_getAdmin({_p})
+	set {_p1} to {omok.game::%{_p2}%}
+
+	clear {omok.game::%{_p2}%}
+	clear {omok.game::%{_p2}%::*}
+	clear {omok.game.turn::%{_p2}%}
+	clear {omok.game.clear::%{_p1}%::*}
+	clear {omok.game.clear::%{_p2}%::*}
+
+	omok_loadInventory({_p1})
+	omok_loadInventory({_p2})
+
+	close inventory to {_p1} and {_p2}
+
+
+# = = = = = Game System Functions = = = = =
+
+# 좌측 상단 좌표: O(0, 0)
+function omok_getLoc(loc: int) :: nums:
+	set {_x} to mod({_loc}, 9)
+	set {_y} to floor({_loc} / 9)
+	return {_x} and {_y}
+
+function omok_getLocInt(loc: nums) :: num:
+	return {_loc::1} + {_loc::2} * 9
+
+function omok_isWin(p: player, loc: int) :: boolean:
+	omok_isPlay({_p}) is false:
+		return false
+
+	# 가로, 세로
+	loop 2 times:
+		set {_weight} to 1
+
+		set {_loc::*} to omok_getLoc({_loc})
+		while {_loc::%loop-num%} < 8:
+			add 1 to {_loc::%loop-num%}
+			set {_loc.temp} to omok_getLocInt({_loc::*})
+			if omok_getBoard({_p}, {_loc.temp}) is {_p}:
+				add 1 to {_weight}
+			else:
+				stop loop
+
+		set {_loc::*} to omok_getLoc({_loc})
+		while {_loc::%loop-num%} > 0:
+			subtract 1 from {_loc::%loop-num%}
+			set {_loc.temp} to omok_getLocInt({_loc::*})
+			if omok_getBoard({_p}, {_loc.temp}) is {_p}:
+				add 1 to {_weight}
+			else:
+				stop loop
+		if {_weight} >= 5:
+			return true
+
+	# 대각선
+	# (+, +), (-, -) / (+, -), (-, +)
+	loop 1 and -1:
+		set {_weight} to 1
+		loop 1 and -1:
+			set {_loc::*} to omok_getLoc({_loc})
+			while true is true:
+				add loop-value-2 * (loop-value-1) to {_loc::1}
+				add loop-value-2 to {_loc::2}
+				if {_loc::1} is -1 or 9:
+					stop loop
+				if {_loc::2} is -1 or 9:
+					stop loop
+				set {_loc.temp} to omok_getLocInt({_loc::*})
+				if omok_getBoard({_p}, {_loc.temp}) is {_p}:
+					add 1 to {_weight}
+				else:
+					stop loop
+		if {_weight} >= 5:
+			return true
+	return false
+
+function omok_openGUI(p: player):
+	omok_isPlay({_p}) is true
+
+	set {_admin} to omok_getAdmin({_p})
+	set {_inv.cur} to chest inventory with 6 row named "{@P} &b오목"
+
+	loop 6 * 9 times:
+		set slot (loop-num)-1 of {_inv.cur} to {@Item.Background}
+		loop-num <= 4 * 9
+		if loop-num <= 1 * 9:
+			if {omok.game.turn::%{_admin}%} is {_p}:
+				set slot (loop-num)-1 of {@Inven} to {@Item.Green} named "&a%{_p}%님의 차례입니다." with a lore "&7> 클릭시 퇴장됩니다."
+			else:
+				set slot (loop-num)-1 of {@Inven} to {@Item.Red} named "&c현재 턴이 아닙니다." with a lore "&7> 클릭시 퇴장됩니다."
+		else:
+			set slot (loop-num)-1 of {@Inven} to {@Item.Background}
+	loop {omok.game::%{_admin}%::*}:
+		set {_i} to loop-index parsed as int
+		if {_i} < 6 * 9:
+			set slot {_i} of {_inv.cur} to omok_getStone(loop-value)
+			continue
+		# 핫바 사용 제외
+		set slot {_i}-(5*9) of {@Inven} to omok_getStone(loop-value)
+	open {_inv.cur} to {_p}
+
+function omok_end(p: player):
+	set {_p2} to omok_getAdmin({_p})
+	set {_p1} to {omok.game::%{_p2}%}
+	omok_clearGame({_p})
+
+	{omok.game.end::%{_p2}%} is set:
+		clear {omok.game.end::%{_p2}%}
+		stop
+	if {_p1} and {_p2} is set:
+		set {_people} to "%{_p1}%, %{_p2}%"
+	else:
+		set {_people} to "%{_p}%"
+	send title "&b게임 종료" with subtitle "&e참가자: %{_people}%" to {_p1} and {_p2} for 2 seconds with fadein 1 second and fade out 1 second
+
+function omok_tie(p: player):
+	set {_p2} to omok_getAdmin({_p})
+	set {_p1} to {omok.game::%{_p2}%}
+	omok_clearGame({_p})
+
+	set {omok.game.end::%{_p2}%} to true
+
+	if {_p1} and {_p2} is set:
+		set {_people} to "%{_p1}%, %{_p2}%"
+	else:
+		set {_people} to "%{_p}%"
+	send title "&b무승부" with subtitle "&e참가자: %{_people}%" to {_p1} and {_p2} for 2 seconds with fadein 1 second and fade out 1 second
+
+function omok_win(p: player):
+	set {_p2} to omok_getAdmin({_p})
+	set {_p1} to {omok.game::%{_p2}%}
+	omok_clearGame({_p})
+
+	set {omok.game.end::%{_p2}%} to true
+
+	if {_p1} is {_p}:
+		set {_p3} to {_p2}
+	else:
+		set {_p3} to {_p1}
+	if {_p1} and {_p2} is set:
+		set {_people} to "%{_p1}%, %{_p2}%"
+	else:
+		set {_people} to "%{_p}%"
+	send title "&a승리" with subtitle "&e참가자: %{_people}%" to {_p} for 2 seconds with fadein 1 second and fade out 1 second
+	send title "&c패배" with subtitle "&e참가자: %{_people}%" to {_p3} for 2 seconds with fadein 1 second and fade out 1 second
+
+# p = 수신자, p2 = 방장(오목 초대장 발송인)
+function omok_start(p: player, p2: player):
+	omok_isPlay({_p}) is false
+	omok_clearInvite({_p})
+
+	set {omok.game::%{_p2}%} to {_p}
+	set {omok.game.turn::%{_p2}%} to {_p2}
+
+	omok_saveInventory({_p})
+	omok_saveInventory({_p2})
+
+	omok_openGUI({_p})
+	omok_openGUI({_p2})
+
+	while {omok.game::%{_p2}%} is set:
+		if size of {omok.game::%{_p2}%::*} is 9 * 9:
+			omok_tie({_p2})
+		wait a tick
+
+	send "{@P} &6오목 게임&f이 종료되었습니다." to {_p} and {_p2}
+
+	{omok.game.end::%{_p2}%} isn't set
+	omok_end({_p})
+
+function omok_quit(p: player):
+	set {_admin} to omok_getAdmin({_p})
+	if {_admin} is {_p}:
+		set {_p2} to {omok.game::%{_admin}%}
+	else:
+		set {_p2} to {_admin}
+
+	send "{@P} &6오목 게임&f을 떠났습니다." to {_p}
+	send "{@P} &a%{_p}%&f님께서 &6오목 게임&f을 떠나셨습니다." to {_p2}
+
+	omok_end({_p})
+
+
+# = = = = = Invite Functions = = = = =
+
+# p = 방장(오목 초대장 발송인), p2 = 방수신자
+function omok_invite(p: player, p2: player):
+	omok_isPlay({_p2}) is false
+	omok_hasInvite({_p2}) is false
+
+	send "{@P} &a%{_p2}%&f님에게 &6오목 초대장&f을 발송했습니다." to {_p}
+	send formatted "{@P} &a%{_p}%&f님에게 &6오목 초대장&f이 날라왔습니다. <ttp:&a클릭하면 게임이 시작됩니다.><cmd:/omok allow>&b[/오목 수락]" to {_p2}
+
+	omok_playSound({_p}, "Invite", 1.0)
+	omok_playSound({_p2}, "Invite", 1.0)
+
+	set {_t} to now
+	set {omok.allow::%{_p2}%} to {_p}
+	while {omok.allow::%{_p2}%} is set:
+		difference between {_t} and now >= 30 seconds:
+			send "{@P} 일정 시간이 경과하여 &6오목 초대장&f이 취소되었습니다." to {_p} and {_p2}
+			clear {omok.allow::%{_p2}%}
+			stop
+		wait a second
+
+function omok_allow(p: player):
+	omok_isPlay({_p}) is false
+	omok_hasInvite({_p}) is true
+	send "{@P} &6오목 초대장&f을 수락했습니다." to {_p}
+	omok_start({_p}, {omok.allow::%{_p}%})
+
+function omok_deny(p: player):
+	omok_isPlay({_p}) is false
+	omok_hasInvite({_p}) is true
+	send "{@P} &a%{_p}%&f님께서 &6오목 초대장&f을 거절하셨습니다." to {omok.allow::%{_p}%}
+	send "{@P} &a%{omok.allow::%{_p}%}%&f님으로부터 온 &6오목 초대장&f을 거절했습니다." to {_p}
+	omok_clearInvite({_p})
+
+command /오목 [<text>] [<player>]:
+	aliases: omok
+	trigger:
+		arg 1 is "수락" or "allow":
+			if omok_hasInvite(player) is false:
+				send "{@P} &6오목 초대장&f이 오지 않았습니다."
+				stop
+			omok_allow(player)
+			stop
+		arg 1 is "초대" or "invite":
+			if arg 2 isn't set:
+				send "{@P} 닉네임을 입력해주세요."
+				stop
+			if arg 2 is player:
+				send "{@P} 자기 자신에게는 &6오목 게임&f을 초대할 수 없습니다."
+				stop
+			if omok_isPlay(arg 2) is true:
+				send "{@P} 상대방은 이미 &6오목 게임&f을 진행중인 상태입니다."
+				stop
+			if omok_hasInvite(arg 2) is true:
+				send "{@P} 상대방은 이미 누군가로부터 &6오목 초대장&f을 받은 상태입니다."
+				stop
+			omok_invite(player, arg 2)
+			stop
+		arg 1 is "취소" or "cancel":
+			if omok_hasInvite(player) is true:
+				omok_deny(player)
+				stop
+			if {omok.allow::*} contains player:
+				loop {omok.allow::*}:
+					loop-value is player
+					set {_p2} to loop-index parsed as offlineplayer
+					stop loop
+				omok_clearInvite(player)
+				send "{@P} &a%{_p2}%&f님께 발송한 &6오목 초대장&f을 취소했습니다."
+				send "{@P} &a%player%&f님께서 발송하신 &6오목 초대장&f을 취소하셨습니다." to {_p2}
+				stop
+			send "{@P} 취소할 &6오목 초대장&f이 없습니다."
+			stop
+		send omok_getCmdInfo()
+
+on damage of player:
+	omok_isPlay(victim) is true
+	cancel event
+	send "{@P} 현재 &6오목 게임&f을 진행중인 유저입니다." to attacker
+
+on join:
+	omok_loadInventory(player)
+
+on quit:
+	omok_clearInvite(player)
+
+	omok_isPlay(player) is true
+	omok_quit(player)
+
+on inventory click:
+	omok_isPlay(player) is true
+	cancel event
+
+	set {_admin} to omok_getAdmin(player)
+
+	set {_slot} to index of clicked slot
+	if clicked inventory is player's inventory:
+		if {_slot} >= 0:
+			{_slot} <= 8
+			omok_quit(player)
+			stop
+		add 5 * 9 to {_slot}
+
+	if {omok.game.turn::%{_admin}%} isn't player:
+		if {omok.game.click::%player%::%{_slot}%} is true:
+			stop
+		set {omok.game.click::%player%::%{_slot}%} to true
+		set {_item} to click item
+		set click item to {_item} with a lore "&c> 현재 턴이 아닙니다."
+
+		wait 10 ticks
+		clear {omok.game.click::%player%::%{_slot}%}
+		omok_isPlay(player) is true
+		set click item to {_item}
+		stop
+	clear {omok.game.click::%player%::*}
+	if {omok.game::%{_admin}%::%{_slot}%} is set:
+		stop
+
+	if {_admin} is player:
+		set {_p2} to {omok.game::%{_admin}%}
+	else:
+		set {_p2} to {_admin}
+
+	set {omok.game::%{_admin}%::%{_slot}%} to player
+	set {omok.game.turn::%{_admin}%} to {_p2}
+
+	omok_openGUI(player)
+	omok_openGUI({_p2})
+
+	omok_playSound(player, "Stone", 1.2)
+	omok_playSound({_p2}, "Turn", 1.1)
+
+	omok_isWin(player, {_slot}) is true
+	omok_win(player)
+
+on inventory close:
+	omok_isPlay(player) is true
+	wait a tick
+	name of player's current inventory doesn't contain "{@P}"
+	omok_openGUI(player)
+
+on load:
+	omok_reload()
