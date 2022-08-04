@@ -16,4 +16,4 @@ ___
 ## Download
 | Version | Release |
 | --- | --- |
-| 1.0 | [Piebin Boom.zip](https://github.com/Baebin/Skript/releases/tag/Boom) |
+| 1.0 | [Piebin Omok.zip](https://github.com/Baebin/Skript/releases/tag/Omok) |
