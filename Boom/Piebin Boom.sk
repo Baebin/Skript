@@ -32,6 +32,12 @@ options:
 	Boom: last spawned armor stand
 	Sound: minecraft:block.note_block.bit
 
+variables:
+	{piebin::boom} = 1.0
+
+
+# = = = = = Util Functions = = = = =
+
 function getBoom() :: item:
 	return Tnt named "{@P} &b접착 폭탄" with the lore "&7> 우클릭시 폭탄을 던집니다."
 
