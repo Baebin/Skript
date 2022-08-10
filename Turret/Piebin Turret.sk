@@ -1,0 +1,1198 @@
+#
+#     __________________________________________________________
+#    / /                                                   / /\ \
+#    \_\___________________________________________________\_\/ /
+#        / /    _____    __            __                    / /
+#       / /    / ____\  / /           /_/          /\       / /
+#      / /    / /__    / /___  ___   __  ______ __/ /_     / /
+#     / /     \___ \  /   __/ / __\ / / / __  //_  __/    / /
+#    / /     ____/ / / /\ \  / /   / / / /_/ /  / /      / /
+#   / /     \_____/ /_/ /_/ /_/   /_/ / ____/  /_/      / /__
+#  / /    ========================== / / ==========    / / \ \
+# | |                               /_/               | |   | |
+#  \_\_________________________________________________\_\_/_/
+#
+#
+#	Naver : baebine@naver.com
+#	Github : https://github.com/Baebin
+#
+#	저작권은 PieBin에게 있으며 개발자의 동의없이 상업적인 용도로 이용 및 무단 배포하는 행위를 금지합니다.
+#
+
+#
+# Environment:
+#	- Skript 2.6
+#	- skDragon 0.16
+#	- Skellett 2.0.2
+#	- skript-reflect 2.3
+#	- skUtilities 0.9.2
+#
+
+
+options:
+	P: &c[ &ePieBin &c]&f
+
+	DB: plugins\Skript\scripts\DB\Turret.yml
+
+	Yml.Turret: "data.turret.%{_loc}%"
+	Yml.Turret.Admin: "data.turret.%{_loc}%.admin"
+	Yml.Turret.Status: "data.turret.%{_loc}%.status"
+	Yml.Turret.Players: "data.turret.%{_loc}%.players"
+	Yml.Turret.Location: "data.turret.%{_loc}%.location"
+	Yml.Turret.Fuel: "data.turret.%{_loc}%.fuel"
+	Yml.Turret.Bullets.Iron: "data.turret.%{_loc}%.bullets.iron"
+	Yml.Turret.Bullets.Gold: "data.turret.%{_loc}%.bullets.gold"
+	Yml.Turret.Bullets.Iron.Magazine: "data.turret.%{_loc}%.magazine.iron"
+	Yml.Turret.Bullets.Gold.Magazine: "data.turret.%{_loc}%.magazine.gold"
+	Yml.Turret.Parts: "data.turret.%{_loc}%.parts"
+
+	Yml.Turret.Aggression.User: "data.turret.%{_loc}%.aggression.user"
+	Yml.Turret.Aggression.Entities: "data.turret.%{_loc}%.aggression.entities"
+
+	# API
+	API: https://raw.githubusercontent.com/Baebin/Skript/main/Turret/Entities
+	Code.Encoding: utf-8
+
+	# Number Value
+	Fuel.Max: 100
+	Fuel.Per.Time: 36
+
+	Turret.Range: 30
+	Turret.Delay: 0.5
+	Turret.Magazine: 100
+	Turret.Reload.Tick.A: 30
+	Turret.Reload.Tick.B: 20
+	Turret.Reload.Tick.C: 20
+	Turret.Reload.Tick.D: 50
+	Turret.Fire.Dust.Count: 2
+	Turret.Fire.Block.Per.Tick: 2
+
+	Bullet.Iron.Damage: 5
+	Bullet.Gold.Damage: 3
+	Bullet.Iron.Damage.Per.Heart: 1
+	Bullet.Gold.Damage.Per.Heart: 0.5
+
+	# Boolean Value
+	Turret.Fire.Flame: false
+	Turret.Offline.Check: true
+
+	# Sound
+	Sound.Fire: entity.firework_rocket.large_blast_far
+	Sound.Reload.A: block.iron_door.open
+	Sound.Reload.B: block.piston.extend
+	Sound.Reload.C: block.piston.contract
+	Sound.Reload.D: block.iron_door.close
+
+	# GUI Item
+	Item.Gray: Gray Stained Glass Pane named " "
+
+	Item.Info: Clock named "&aTurret Info"
+	Item.Status.ON: Lime Stained Glass Pane named "&aStatus"
+	Item.Status.OFF: Red Stained Glass Pane named "&aStatus"
+	Item.Setting: Book named "&aAnother Setting"
+	Item.Fuel: Item Frame named "&aFuel Tank"
+	Item.Parts: Item Frame named "&aParts"
+
+	Item.User.Add: Writable Book named "&aUser Add"
+	Item.User.Remove: Book named "&aUser Delete"
+	Item.Entity: Glow Writable Book named "&aEntity Aggression"
+	Item.User: Glow Book named "&aUser Aggression"
+	Item.Admin: Enchanted Book named "&aAdmin Transfer"
+
+	Item.Entity.Status.ON: Lime Stained Glass Pane named "&a%{_entity}%"
+	Item.Entity.Status.OFF: Red Stained Glass Pane named "&a%{_entity}%"
+
+	Item.Page: Lime Stained Glass Pane named "&aPage: %{_page}%"
+	Item.Page.Back: Pink Stained Glass Pane named "&aBack"
+	Item.Page.Next: Light Blue Stained Glass Pane named "&aNext"
+
+	Item.Bullet.Iron: Iron Nugget
+	Item.Bullet.Gold: Gold Nugget
+
+	# Variable
+	GUI: current inventory of {_p}
+
+variables:
+	{piebin::turret} = 1.0
+
+import:
+	java.net.URL
+	java.io.BufferedReader
+	java.io.InputStreamReader
+
+
+# = = = = = Item Functions = = = = =
+
+function tr_getItem() :: item:
+	return Beacon named "{@P} Turret" with a lore "&7> 우클릭시 터렛이 설치됩니다."
+
+function tr_getPartsItem() :: item:
+	return Enchanted Book named "{@P} 유도탄 파츠" with a lore "&7> 탄도 계산용 터렛 파츠입니다."
+
+
+# = = = = = Util Functions = = = = =
+
+function tr_playSound(loc: location, sound: text, pitch: number):
+	if {_sound} is "Fire":
+		play sound "{@Sound.Fire}" with volume 1.0 and pitch {_pitch} to players in radius {@Turret.Range} around {_loc}
+	if {_sound} is "Reload.A":
+		play sound "{@Sound.Reload.A}" with volume 1.0 and pitch {_pitch} to players in radius {@Turret.Range} around {_loc}
+	if {_sound} is "Reload.B":
+		play sound "{@Sound.Reload.B}" with volume 1.0 and pitch {_pitch} to players in radius {@Turret.Range} around {_loc}
+	if {_sound} is "Reload.C":
+		play sound "{@Sound.Reload.C}" with volume 1.0 and pitch {_pitch} to players in radius {@Turret.Range} around {_loc}
+	if {_sound} is "Reload.D":
+		play sound "{@Sound.Reload.D}" with volume 1.0 and pitch {_pitch} to players in radius {@Turret.Range} around {_loc}
+
+function tr_isExist(loc: location) :: boolean:
+	if yml {@Yml.Turret} in file "{@DB}" exists:
+		return true
+	return false
+
+function tr_getOpenPlayer(loc: location) :: object:
+	if tr_isExist({_loc}) is true:
+		if {turret_open::%{_loc}%} is set:
+			if {turret_open::%{_loc}%} is online:
+				name of current inventory of {turret_open::%{_loc}%} is "{@P} &aTurret"
+				return {turret_open::%{_loc}%}
+			clear {turret_open::%{_loc}%}
+		return {turret_open::%{_loc}%}
+	return null
+
+function tr_setAdmin(loc: location, p: object) :: text:
+	if tr_isExist({_loc}) is false:
+		stop
+	set yml value {@Yml.Turret.Admin} from file "{@DB}" to name of {_p}
+
+function tr_getAdmin(loc: location) :: text:
+	if tr_isExist({_loc}) is false:
+		return ""
+	set {_admin} to yml value {@Yml.Turret.Admin} from file "{@DB}"
+	return "%{_admin}%"
+
+function tr_setStatus(loc: location, status: boolean):
+	if tr_isExist({_loc}) is false:
+		stop
+	set yml value {@Yml.Turret.Status} from file "{@DB}" to {_status}
+
+function tr_getStatus(loc: location) :: boolean:
+	if tr_isExist({_loc}) is false:
+		return false
+	set {_status} to yml value {@Yml.Turret.Status} from file "{@DB}"
+	return {_status}
+
+function tr_getPlayers(loc: location) :: texts:
+	if tr_isExist({_loc}) is false:
+		return ""
+	loop yml list {@Yml.Turret.Players} from file "{@DB}":
+		add loop-value to {_p::*}
+	return {_p::*}
+
+function tr_hasPlayer(loc: location, p: object) :: boolean:
+	if tr_isExist({_loc}) is false:
+		return false
+	loop tr_getPlayers({_loc}):
+		name of {_p} is loop-value
+		return true
+	return false
+
+function tr_addPlayer(loc: location, p: object):
+	if tr_isExist({_loc}) is false:
+		stop
+	tr_hasPlayer({_loc}, {_p}) is false
+	add name of {_p} to yml list {@Yml.Turret.Players} from file "{@DB}"
+
+function tr_removePlayer(loc: location, p: object):
+	if tr_isExist({_loc}) is false:
+		stop
+	if tr_getAdmin({_loc}) is name of {_p}:
+		stop
+	tr_hasPlayer({_loc}, {_p}) is true
+	remove name of {_p} from yml list {@Yml.Turret.Players} from file "{@DB}"
+
+function tr_getFuel(loc: location) :: integer:
+	if tr_isExist({_loc}) is false:
+		return 0
+	return yml value {@Yml.Turret.Fuel} from file "{@DB}"
+
+function tr_setFuel(loc: location, amount: integer):
+	if tr_isExist({_loc}) is false:
+		stop
+	set yml value {@Yml.Turret.Fuel} from file "{@DB}" to {_amount}
+
+function tr_getIronMagazine(loc: location) :: integer:
+	if tr_isExist({_loc}) is false:
+		return 0
+	return yml value {@Yml.Turret.Bullets.Iron.Magazine} from file "{@DB}"
+
+function tr_setIronMagazine(loc: location, amount: integer):
+	if tr_isExist({_loc}) is false:
+		stop
+	if {_amount} >= {@Turret.Magazine}:
+		set {_amount} to {@Turret.Magazine}
+	if {_amount} < 0:
+		set {_amount} to 0
+	set yml value {@Yml.Turret.Bullets.Iron.Magazine} from file "{@DB}" to {_amount}
+
+function tr_getGoldMagazine(loc: location) :: integer:
+	if tr_isExist({_loc}) is false:
+		return 0
+	return yml value {@Yml.Turret.Bullets.Gold.Magazine} from file "{@DB}"
+
+function tr_setGoldMagazine(loc: location, amount: integer):
+	if tr_isExist({_loc}) is false:
+		stop
+	if {_amount} >= {@Turret.Magazine}:
+		set {_amount} to {@Turret.Magazine}
+	if {_amount} < 0:
+		set {_amount} to 0
+	set yml value {@Yml.Turret.Bullets.Gold.Magazine} from file "{@DB}" to {_amount}
+
+function tr_getIron(loc: location) :: integer:
+	if tr_isExist({_loc}) is false:
+		return 0
+	return yml value {@Yml.Turret.Bullets.Iron} from file "{@DB}"
+
+function tr_setIron(loc: location, amount: integer):
+	if tr_isExist({_loc}) is false:
+		stop
+	set yml value {@Yml.Turret.Bullets.Iron} from file "{@DB}" to {_amount}
+	tr_getIronMagazine({_loc}) > {_amount}
+	tr_setIronMagazine({_loc}, {_amount})
+
+function tr_getGold(loc: location) :: integer:
+	if tr_isExist({_loc}) is false:
+		return 0
+	return yml value {@Yml.Turret.Bullets.Gold} from file "{@DB}"
+
+function tr_setGold(loc: location, amount: integer):
+	if tr_isExist({_loc}) is false:
+		stop
+	set yml value {@Yml.Turret.Bullets.Gold} from file "{@DB}" to {_amount}
+	tr_getGoldMagazine({_loc}) > {_amount}
+	tr_setGoldMagazine({_loc}, {_amount})
+
+function tr_setParts(loc: location, parts: text):
+	if tr_isExist({_loc}) is false:
+		stop
+	set yml value {@Yml.Turret.Parts} from file "{@DB}" to {_parts}
+
+function tr_getParts(loc: location) :: text:
+	if tr_isExist({_loc}) is false:
+		return ""
+	set {_Parts} to yml value {@Yml.Turret.Parts} from file "{@DB}"
+	return "%{_Parts}%"
+
+function tr_setUserAggression(loc: location, status: integer):
+	if tr_isExist({_loc}) is false:
+		stop
+	set yml value {@Yml.Turret.Aggression.User} from file "{@DB}" to {_status}
+
+function tr_getUserAggression(loc: location) :: integer:
+	if tr_isExist({_loc}) is false:
+		return 0
+	set {_status} to yml value {@Yml.Turret.Aggression.User} from file "{@DB}"
+	return {_status}
+
+function tr_getEntityAggressions(loc: location) :: texts:
+	if tr_isExist({_loc}) is false:
+		return ""
+	loop yml list {@Yml.Turret.Aggression.Entities} from file "{@DB}":
+		add loop-value to {_e::*}
+	return {_e::*}
+
+function tr_hasEntity(loc: location, entity: text) :: boolean:
+	if tr_isExist({_loc}) is false:
+		return false
+	loop tr_getEntityAggressions({_loc}):
+		{_entity} is loop-value
+		return true
+	return false
+
+function tr_addEntityAggression(loc: location, entity: text):
+	if tr_isExist({_loc}) is false:
+		stop
+	tr_hasEntity({_loc}, {_entity}) is false
+	add {_entity} to yml list {@Yml.Turret.Aggression.Entities} from file "{@DB}"
+
+function tr_removeEntityAggression(loc: location, entity: text):
+	if tr_isExist({_loc}) is false:
+		stop
+	tr_hasEntity({_loc}, {_entity}) is true
+	remove {_entity} from yml list {@Yml.Turret.Aggression.Entities} from file "{@DB}"
+
+# 몬스터는 기본 공격, 반대값으로 반환
+function tr_checkEntityAggression(loc: location, entity: text) :: boolean:
+	if tr_isExist({_loc}) is false:
+		if {turret::1::%{_entity}%} is set:
+			return true
+		return false
+	if tr_hasEntity({_loc}, {_entity}) is true:
+		if {turret::1::%{_entity}%} is set:
+			return false
+		return true
+	if {turret::1::%{_entity}%} is set:
+		return true
+	return false
+
+
+# = = = = = Turret GUI Update Functions = = = = =
+
+function tr_updateGUI(p: player):
+	if name of current inventory of {_p} isn't "{@P} &aTurret":
+		stop
+	set {_loc} to metadata value "turret" of {_p}
+	if tr_isExist({_loc}) is false:
+		stop
+	set {_admin} to tr_getAdmin({_loc})
+	set {_status} to tr_getStatus({_loc})
+
+	set {_fuel} to tr_getFuel({_loc})
+	set {_parts} to tr_getParts({_loc})
+	if {_parts} is "":
+		set {_parts} to "X"
+
+	set {_iron} to tr_getIron({_Loc})
+	set {_gold} to tr_getGold({_Loc})
+
+	# 갱신시 시간차로 인한 표기 오류 방지
+	if {_iron} is 0:
+		set {_iron} to amount of {@Item.Bullet.Iron} in {@GUI} + 0
+	if {_gold} is 0:
+		set {_gold} to amount of {@Item.Bullet.Gold} in {@GUI} + 0
+
+	set {_iron.magazine} to tr_getIronMagazine({_loc})
+	set {_gold.magazine} to tr_getGoldMagazine({_loc})
+
+	add "&6> &b소유자&f: &e%{_admin}%" to {_lore::*}
+	add "&6> &b연료 탱크&f: &e%{_fuel}%.0L/{@Fuel.Max}.0L" to {_lore::*}
+	add "" to {_lore::*}
+	add "&6> &b터렛 탄창&f:" to {_lore::*}
+	add "&7      - &b철&f: &c%{_iron.magazine}%/{@Turret.Magazine}" to {_lore::*}
+	add "&7      - &b금&f: &c%{_gold.magazine}%/{@Turret.Magazine}" to {_lore::*}
+	add "&6> &b보유 탄환&f:" to {_lore::*}
+	add "&7      - &b철&f: &c%{_iron}%" to {_lore::*}
+	add "&7      - &b금&f: &c%{_gold}%" to {_lore::*}
+	add "" to {_lore::*}
+	add "&6> &b부착 파츠&f: &c%{_parts}%" to {_lore::*}
+	set slot (11)-1 of {@GUI} to {@Item.Info} with the lore {_lore::*}
+
+	clear {_lore::*}
+	if {_status} is true:
+		add "&6> &f클릭하여 &c비활성화&f합니다." to {_lore::*}
+		set {_item} to {@Item.Status.ON}
+	else:
+		add "&6> &f클릭하여 &e활성화&f합니다." to {_lore::*}
+		set {_item} to {@Item.Status.OFF}
+	if {_fuel} is 0:
+		add "&6> &c연료가 부족합니다." to {_lore::*}
+	if {_iron} + {_gold} is 0:
+		add "&6> &c탄환이 부족합니다." to {_lore::*}
+	set slot (12-1) of {@GUI} to {_item} with the lore {_lore::*}
+
+	clear {_lore::*}
+	add "&6> &b연료&f: &e%{_fuel}%.0L/{@Fuel.Max}.0L" to {_lore::*}
+	if {_fuel} < {@Fuel.Max}:
+		add "&6> &c레드스톤을 연료 탱크에 넣어주세요." to {_lore::*}
+		set {_item} to {@Item.Fuel}
+	else:
+		set {_item} to {@Item.Fuel}
+	set slot (14)-1 of {@GUI} to {_item} with the lore {_lore::*}
+
+	if {_parts} is "유도탄":
+		set slot (15)-1 of {@GUI} to 1 of tr_getPartsItem()
+	else:
+		clear {_lore::*}
+		add "&6> &b부착 파츠&f: &c%{_parts}%" to {_lore::*}
+		if {_parts} is "X":
+			add "&6> &c파츠를 장착해주세요." to {_lore::*}
+		set slot (15)-1 of {@GUI} to {@Item.Parts} with the lore {_lore::*}
+
+	clear {_lore::*}
+	add "&6> &c세부적인 설정을 합니다." to {_lore::*}
+	set slot (17-1) of {@GUI} to {@Item.Setting} with the lore {_lore::*}
+
+function tr_updateSettingGUI(p: player):
+	if name of current inventory of {_p} isn't "{@P} &aTurret":
+		stop
+	set {_loc} to metadata value "turret" of {_p}
+	if tr_isExist({_loc}) is false:
+		stop
+	set {_aggression} to tr_getUserAggression({_loc})
+
+	add "&7", "&7" and "&7" to {_color::*}
+	set {_color::%{_aggression}%} to "&b"
+
+	add "&6> &c유저 공격성을 설정합니다." to {_lore::*}
+	add "" to {_lore::*}
+	add "&6> %{_color::1}%공격 안 함" to {_lore::*}
+	add "&6> %{_color::2}%권한 없는 유저" to {_lore::*}
+	add "&6> %{_color::3}%소유자 제외 유저" to {_lore::*}
+
+	set slot (6)-1 of {@GUI} to {@Item.User} with the lore {_lore::*}
+
+function tr_updateUserGUI(p: player):
+	if name of current inventory of {_p} isn't "{@P} &aTurret":
+		stop
+	set {_loc} to metadata value "turret" of {_p}
+	if tr_isExist({_loc}) is false:
+		stop
+	set {_page} to metadata value "turret.page" of {_p}
+	set {_edit.add} to metadata value "turret.edit.add" of {_p}
+	set {_edit.admin} to metadata value "turret.edit.admin" of {_p}
+
+	if {_edit.add} is true:
+		loop players:
+			add loop-player to {_list::*}
+	else:
+		loop tr_getPlayers({_loc}):
+			add loop-value parsed as offlineplayer to {_list::*}
+
+	set {_i} to (({_page})-1) * 3 * 7
+	loop 3 * 7 times:
+		add 1 to {_i}
+		if {_list::%{_i}%} isn't set:
+			set slot (loop-num)-1 of {@GUI} to Air
+			continue
+		set {_pl} to {_list::%{_i}%}
+
+		clear {_lore::*}
+		if {_edit.add} is true:
+			add "&6> &f클릭하여 &a권한&f을 지급합니다." to {_lore::*}
+			tr_hasPlayer({_loc}, {_pl}) is true
+			add "&6> &c이미 권한이 지급된 유저입니다." to {_lore::*}
+		else if {_edit.admin} is true:
+			add "&6> &f클릭하여 &a소유자&f를 이전합니다." to {_lore::*}
+			tr_getAdmin({_loc}) is "%{_pl}%"
+			add "&6> &c소유자로 이전할 수 없는 유저입니다." to {_lore::*}
+		else:
+			add "&6> &f클릭하여 &a권한&f을 회수합니다." to {_lore::*}
+			tr_getAdmin({_loc}) is "%{_pl}%"
+			add "&6> &c권한을 회수할 수 없는 유저입니다." to {_lore::*}
+
+		set slot (loop-num)-1 of {@GUI} to skull of {_pl} named "&a%{_pl}%" with the lore {_lore::*}
+
+	set slot (32)-1 of {@GUI} to {@Item.Page}
+
+function tr_updateEntityGUI(p: player):
+	if name of current inventory of {_p} isn't "{@P} &aTurret":
+		stop
+	set {_loc} to metadata value "turret" of {_p}
+	if tr_isExist({_loc}) is false:
+		stop
+	set {_page} to metadata value "turret.page" of {_p}
+	set {_edit.add} to metadata value "turret.edit.add" of {_p}
+	set {_edit.admin} to metadata value "turret.edit.admin" of {_p}
+
+	loop {turret::%{_page}%::*}:
+		add loop-index to {_list::*}
+
+	loop 3 * 9 times:
+		add 1 to {_i}
+		if {_list::%{_i}%} isn't set:
+			set slot (loop-num)-1 of {@GUI} to Air
+			continue
+		set {_entity} to {_list::%{_i}%}
+
+		if tr_checkEntityAggression({_loc}, {_entity}) is true:
+			set {_item} to {@Item.Entity.Status.ON} with a lore "&6> &f해당 엔티티를 &a공격&f합니다."
+		else:
+			set {_item} to {@Item.Entity.Status.OFF} with a lore "&6> &f해당 엔티티를 &a공격&f하지 않습니다."
+		set slot (loop-num)-1 of {@GUI} to {_item}
+
+	set slot (32)-1 of {@GUI} to {@Item.Page}
+
+
+# = = = = = Turret GUI Open Functions = = = = =
+
+function tr_openGUI(loc: location, p: player):
+	if tr_hasPlayer({_loc}, {_p}) is false:
+		send "{@P} &a터렛 설정 권한&f이 없습니다." to {_p}
+		stop
+	set {_p.open} to tr_getOpenPlayer({_loc})
+	if {_p.open} is set:
+		send "{@P} &a%name of {_p.open}%&f님께서 설정중입니다." to {_p}
+		stop
+	set {turret_open::%{_loc}%} to {_p}
+
+	set {_inv.cur} to chest inventory with 6 row named "{@P} &aTurret"
+	set metadata value "turret" of {_p} to {_loc}
+	set metadata value "turret.gui" of {_p} to "Main"
+
+	# 테두리: 라인
+	loop 0, 2 and 5:
+		loop 9 times:
+			set {_raw} to loop-value-1
+			set {_index} to loop-value-2
+			set {_slot} to {_raw} * 9 + {_index} - 1
+			set slot {_slot} of {_inv.cur} to {@Item.Gray}
+
+	# 테두리: 중간
+	loop 13 and 16:
+		set {_slot} to loop-value
+		set slot ({_slot})-1 of {_inv.cur} to {@Item.Gray}
+
+	# 테두리: 사이드
+	loop 1, 3 and 4:
+		set {_raw} to loop-value
+		set {_slot} to {_raw} * 9
+		set slot {_slot} of {_inv.cur} to {@Item.Gray}
+		set slot ({_slot})+8 of {_inv.cur} to {@Item.Gray}
+
+	open {_inv.cur} to {_p}
+	tr_updateGUI({_p})
+
+	give tr_getIron({_loc}) of {@Item.Bullet.Iron} to {_inv.cur}
+	give tr_getGold({_loc}) of {@Item.Bullet.Gold} to {_inv.cur}
+
+function tr_openSettingGUI(loc: location, p: player):
+	if tr_hasPlayer({_loc}, {_p}) is false:
+		send "{@P} 해당 &a터렛&f을 설정할 수 있는 권한이 없습니다." to {_p}
+		stop
+
+	set {_inv.cur} to chest inventory with 1 row named "{@P} &aTurret"
+	set metadata value "turret" of {_p} to {_loc}
+
+	# 테두리: 중간
+	loop 1, 4, 7 and 9:
+		set {_slot} to loop-value
+		set slot ({_slot})-1 of {_inv.cur} to {@Item.Gray}
+
+	set slot (2)-1 of {_inv.cur} to {@Item.User.Add} with a lore "&6> &c유저에게 권한을 지급합니다."
+	set slot (3)-1 of {_inv.cur} to {@Item.User.Remove} with a lore "&6> &c유저의 권한을 회수합니다."
+
+	set slot (5)-1 of {_inv.cur} to {@Item.Entity} with a lore "&6> &c엔티티 공격성을 설정합니다."
+	set slot (6)-1 of {_inv.cur} to {@Item.User} with a lore "&6> &c유저 공격성을 설정합니다."
+
+	set slot (8)-1 of {_inv.cur} to {@Item.Admin} with a lore "&6> &c소유자를 변경합니다."
+
+	open {_inv.cur} to {_p}
+	set metadata value "turret.gui" of {_p} to "Sub"
+
+	tr_updateSettingGUI({_p})
+
+function tr_openUserGUI(loc: location, p: player, edit.add: boolean, edit.admin: boolean):
+	if tr_hasPlayer({_loc}, {_p}) is false:
+		send "{@P} 해당 &a터렛&f을 설정할 수 있는 권한이 없습니다." to {_p}
+		stop
+
+	set {_inv.cur} to chest inventory with 4 row named "{@P} &aTurret"
+	set metadata value "turret" of {_p} to {_loc}
+	set metadata value "turret.page" of {_p} to 1
+
+	# 테두리: 라인
+	loop 9 times:
+		loop-num is 4, 5 or 6:
+			continue
+		set slot ((loop-num)-1) + (3 * 9) of {_inv.cur} to {@Item.Gray}
+	set slot (31)-1 of {_inv.cur} to {@Item.Page.Back}
+	set slot (33)-1 of {_inv.cur} to {@Item.Page.Next}
+
+	clear metadata value "turret.gui" of {_p}
+	open {_inv.cur} to {_p}
+	set metadata value "turret.gui" of {_p} to "User"
+	set metadata value "turret.edit.add" of {_p} to {_edit.add}
+	set metadata value "turret.edit.admin" of {_p} to {_edit.admin}
+
+	tr_updateUserGUI({_p})
+
+function tr_openEntityGUI(loc: location, p: player):
+	if tr_hasPlayer({_loc}, {_p}) is false:
+		send "{@P} 해당 &a터렛&f을 설정할 수 있는 권한이 없습니다." to {_p}
+		stop
+
+	set {_inv.cur} to chest inventory with 4 row named "{@P} &aTurret"
+	set metadata value "turret" of {_p} to {_loc}
+	set metadata value "turret.page" of {_p} to 1
+
+	# 테두리: 라인
+	loop 9 times:
+		loop-num is 4, 5 or 6:
+			continue
+		set slot ((loop-num)-1) + (3 * 9) of {_inv.cur} to {@Item.Gray}
+	set slot (31)-1 of {_inv.cur} to {@Item.Page.Back}
+	set slot (33)-1 of {_inv.cur} to {@Item.Page.Next}
+
+	clear metadata value "turret.gui" of {_p}
+	open {_inv.cur} to {_p}
+	set metadata value "turret.gui" of {_p} to "Entity"
+
+	tr_updateEntityGUI({_p})
+
+
+# = = = = = Turret Util Functions = = = = =
+
+function tr_delete(loc: location):
+	tr_isExist({_loc}) is true
+	set block at {_loc} to Air
+
+	set {_fuel} to tr_getFuel({_loc})
+	set {_parts} to tr_getParts({_loc})
+
+	set {_iron} to tr_getIron({_loc})
+	set {_gold} to tr_getGold({_loc})
+	clear yml nodes {@Yml.Turret} from file "{@DB}"
+
+	drop 1 of tr_getItem() at {_loc}
+	if {_iron} isn't 0:
+		drop {_iron} of {@Item.Bullet.Iron} at {_loc}
+	if {_gold} isn't 0:
+		drop {_gold} of {@Item.Bullet.Gold} at {_loc}
+	if {_fuel} isn't 0:
+		drop {_fuel} of redstone item at {_loc}
+	{_parts} is "유도탄"
+	drop 1 of tr_getPartsItem() at {_loc}
+
+function tr_register(loc: location, p: player):
+	if tr_isExist({_loc}) is false:
+		clear yml list {@Yml.Turret} from file "{@DB}"
+
+	set yml value {@Yml.Turret.Admin} from file "{@DB}" to name of {_p}
+	set yml value {@Yml.Turret.Status} from file "{@DB}" to false
+	set yml value {@Yml.Turret.Location} from file "{@DB}" to {_loc}
+
+	add name of {_p} to yml list {@Yml.Turret.Players} from file "{@DB}"
+	set yml value {@Yml.Turret.Fuel} from file "{@DB}" to 0
+
+	set yml value {@Yml.Turret.Bullets.Iron} from file "{@DB}" to 0
+	set yml value {@Yml.Turret.Bullets.Gold} from file "{@DB}" to 0
+	set yml value {@Yml.Turret.Bullets.Iron.Magazine} from file "{@DB}" to 0
+	set yml value {@Yml.Turret.Bullets.Gold.Magazine} from file "{@DB}" to 0
+
+	set yml value {@Yml.Turret.Aggression.User} from file "{@DB}" to 1
+	add "북극곰" to yml list {@Yml.Turret.Aggression.Entities} from file "{@DB}"
+
+	tr_setParts({_loc}, "")
+
+
+# = = = = = Turret System Functions = = = = =
+
+function tr_isTarget(loc: location, e: entity, admin: text) :: boolean:
+	set {_type.temp} to "%type of {_e}%"
+	if "%{_type.temp}%" contains "player":
+		if {_admin} is name of {_e}:
+			return false
+		set {_aggression} to tr_getUserAggression({_loc})
+		if {_aggression} is 1:
+			return false
+		if {_aggression} is 2:
+			tr_hasPlayer({_loc}, {_e}) is true
+			return false
+		return true
+	set {_type.temp} to "%{_e}%"
+	replace " " with "" in {_type.temp}
+	loop 2 times:
+		loop {turret::%loop-num%::*}:
+			set {_type} to loop-value-2
+			replace " " with "" in {_type}
+			"%{_type.temp}%" contains "%{_type}%"
+			if tr_checkEntityAggression({_loc}, loop-index) is true:
+				return true
+			return false
+	return false
+
+function tr_fire(loc: location, entity: entity, admin: text, bullet.iron: boolean, parts: boolean):
+	tr_playSound({_loc}, "Fire", 1.5)
+
+	set {_loc.original} to {_loc}
+
+	add 1 to y coord of {_loc}
+	set {_loc.entity} to {_entity}'s location
+	add 0.5 to y coord of {_loc.entity}
+
+	set {_vector} to vector from {_loc} to {_loc.entity}
+	set yaw of {_loc} to yaw of {_vector}
+	set pitch of {_loc} to pitch of {_vector}
+
+	set {_loc.temp} to {_loc}
+
+	while true is true:
+		add 1 to {_i}
+		if {_parts} is true:
+			set {_loc.bullet} to location 0.5 infront {_loc.temp}
+			set {_loc.temp} to {_loc.bullet}
+
+			if distance between {_loc.bullet} and {_loc} >= {@Turret.Range}:
+				stop
+			set {_vector} to vector from {_loc.bullet} to {_entity}
+			set yaw of {_loc.temp} to yaw of {_vector}
+			set pitch of {_loc.temp} to pitch of {_vector}
+		else:
+			if {_i} >= {@Turret.Range} * 2 times:
+				stop
+			set {_loc.bullet} to location 0.5 * {_i} infront {_loc}
+		if {_entity} isn't alive:
+			stop
+		if block at {_loc.bullet} isn't Beacon:
+			"%block at {_loc.bullet}%" doesn't contain "glass"
+			block at {_loc.bullet} isn't passable
+			stop
+		if {@Turret.Fire.Flame} is true:
+			loop {@Turret.Fire.Dust.Count} times:
+				play flame at {_loc.bullet} to players in radius {@Turret.Range} around {_loc.bullet}
+		else:
+			if {_bullet.iron} is true:
+				drawDot count {@Turret.Fire.Dust.Count}, particle blockcrack, material iron block, XYZ 0, 0, 0, center {_loc.bullet}, visibleRange {@Turret.Range}, pulseDelay 1, keepFor a tick
+			else:
+				drawDot count {@Turret.Fire.Dust.Count}, particle blockcrack, material gold block, XYZ 0, 0, 0, center {_loc.bullet}, visibleRange {@Turret.Range}, pulseDelay 1, keepFor a tick
+		loop entities in radius 0.8 around {_loc.bullet}:
+			tr_isTarget({_loc.original}, loop-entity, {_admin}) is true
+			if {_bullet.iron} is true:
+				damage loop-entity by {@Bullet.Iron.Damage}/2
+				subtract {@Bullet.Iron.Damage.Per.Heart} from loop-entity's health
+			else:
+				damage loop-entity by {@Bullet.Gold.Damage}/2
+				subtract {@Bullet.Gold.Damage.Per.Heart} from loop-entity's health
+			stop
+		mod({_i}, {@Turret.Fire.Block.Per.Tick}) is 0
+		wait a tick
+
+function tr_fireStatus(loc: location, entity: entity, admin: text) :: boolean:
+	add 1 to y coord of {_loc}
+	set {_loc.entity} to {_entity}'s location
+	add 0.5 to y coord of {_loc.entity}
+
+	set {_vector} to vector from {_loc} to {_loc.entity}
+	set yaw of {_loc} to yaw of {_vector}
+	set pitch of {_loc} to pitch of {_vector}
+
+	loop {@Turret.Range} * 2 times:
+		set {_loc.bullet} to location 0.5 * loop-num infront {_loc}
+		if block at {_loc.bullet} isn't Beacon:
+			"%block at {_loc.bullet}%" doesn't contain "glass"
+			block at {_loc.bullet} isn't passable
+			return false
+		loop entities in radius 0.8 around {_loc.bullet}:
+			loop-entity is {_entity}
+			return true
+	return false
+
+function tr_getEntity(loc: location, admin: text) :: object:
+	set {_dis} to {@Turret.Range}
+	loop entities in radius {@Turret.Range} around {_loc}:
+		tr_isTarget({_loc}, loop-entity, {_admin}) is true
+		tr_fireStatus({_loc}, loop-entity, {_admin}) is true
+		distance between {_loc} and loop-entity <= {_dis}
+		set {_dis} to distance between {_loc} and loop-entity
+		set {_e} to loop-entity
+	return {_e}
+
+function tr_start(loc: location):
+	wait {@Turret.Delay} seconds
+	clear {tr_stop::%{_loc}%}
+
+	set {_admin} to tr_getAdmin({_loc})
+	set {_parts} to tr_getParts({_loc})
+
+	set {_fuel} to tr_getFuel({_loc})
+	set {_iron} to tr_getIron({_loc})
+	set {_gold} to tr_getGold({_loc})
+	set {_iron.magazine} to tr_getIronMagazine({_loc})
+	set {_gold.magazine} to tr_getGoldMagazine({_loc})
+
+	wait a tick
+
+	if {_parts} is "유도탄":
+		set {_parts} to true
+	else:
+		set {_parts} to false
+
+	while {_fuel} > 0:
+		add {@Turret.Delay} to {_i}
+		block at {_loc} isn't Beacon:
+			tr_delete({_loc})
+			stop loop
+		if {tr_stop::%{_loc}%} is true:
+			stop loop
+		if tr_getStatus({_loc}) is false:
+			stop loop
+		if {_i} >= {@Fuel.Per.Time}:
+			set {_i} to 0
+			subtract 1 from {_fuel}
+			tr_setFuel({_loc}, {_fuel})
+		clear {_magazine}
+		if {_iron.magazine} > 0:
+			add {_iron.magazine} to {_magazine}
+		if {_gold.magazine} > 0:
+			add {_gold.magazine} to {_magazine}
+		if {_magazine} is set:
+			set {_e} to tr_getEntity({_loc}, {_admin})
+			{_e} is set
+			if {_iron.magazine} > 0:
+				subtract 1 from {_iron}
+				subtract 1 from {_iron.magazine}
+				tr_setIron({_loc}, {_iron})
+				tr_setIronMagazine({_loc}, {_iron.magazine})
+				tr_fire({_loc}, {_e}, {_admin}, true, {_parts})
+			else:
+				subtract 1 from {_gold}
+				subtract 1 from {_gold.magazine}
+				tr_setGold({_loc}, {_gold})
+				tr_setGoldMagazine({_loc}, {_gold.magazine})
+				tr_fire({_loc}, {_e}, {_admin}, false, {_parts})
+		else:
+			{_iron} + {_gold} > 0
+			tr_playSound({_loc}, "Reload.A", 0.5)
+			wait {@Turret.Reload.Tick.A} ticks
+			tr_playSound({_loc}, "Reload.B", 0.3)
+			wait {@Turret.Reload.Tick.B} ticks
+			tr_playSound({_loc}, "Reload.C", 0.8)
+			wait {@Turret.Reload.Tick.C} ticks
+			tr_playSound({_loc}, "Reload.D", 0.5)
+			wait {@Turret.Reload.Tick.D} ticks
+
+			if {_iron} >= {@Turret.Magazine}:
+				set {_iron.magazine} to {@Turret.Magazine}
+				tr_setIronMagazine({_loc}, {_iron.magazine})
+			else if {_gold} >= {@Turret.Magazine}:
+				set {_gold.magazine} to {@Turret.Magazine}
+				tr_setGoldMagazine({_loc}, {_gold.magazine})
+			else:
+				set {_iron.magazine} to {_iron}
+				tr_setIronMagazine({_loc}, {_iron})
+				set {_d} to floor({@Turret.Magazine} - {_iron})
+				if {_gold} >= {_d}:
+					set {_gold.magazine} to {_d}
+					tr_setGoldMagazine({_loc}, {_d})
+				else:
+					set {_gold.magazine} to {_gold}
+					tr_setGoldMagazine({_loc}, {_gold})
+		wait {@Turret.Delay} seconds
+
+	clear {tr_stop::%{_loc}%}
+
+	tr_setIron({_loc}, {_iron})
+	tr_setGold({_loc}, {_gold})
+
+	tr_setIronMagazine({_loc}, {_iron.magazine})
+	tr_setGoldMagazine({_loc}, {_gold.magazine})
+
+function tr_stop(loc: location):
+	if {tr_stop::%{_loc}%} is set:
+		stop
+	set {tr_stop::%{_loc}%} to true
+
+
+# = = = = = System Functions = = = = =
+
+function tr_reload():
+	loop yml nodes "data.turret" from file "{@DB}":
+		set {_x} to loop-value-1
+		loop yml nodes "data.turret.%{_x}%" from file "{@DB}":
+			set {_y} to loop-value-2
+			loop yml nodes "data.turret.%{_x}%.%{_y}%" from file "{@DB}":
+				set {_z} to loop-value-3
+				loop yml nodes "data.turret.%{_x}%.%{_y}%.%{_z}%" from file "{@DB}":
+					set {_world} to loop-value-4
+					add yml value "data.turret.%{_x}%.%{_y}%.%{_z}%.%{_world}%.location" from file "{@DB}" to {_loc::*}
+	loop {_loc::*}:
+		set {_loc} to loop-value
+		if block at {_loc} is Air:
+			clear yml nodes {@Yml.Turret} from file "{@DB}"
+			continue
+		yml value {@Yml.Turret.Status} from file "{@DB}" is true
+		add loop-value to {_list.on::*}
+		tr_stop(loop-value)
+
+	set {_url} to new URL("{@API}")
+	set {_stream.input} to new InputStreamReader({_url}.openStream(), "{@Code.Encoding}")
+	set {_stream.buffer} to new BufferedReader({_stream.input})
+
+	set {_i} to 1
+	clear {turret::*}
+	set {_start} to now
+	while true is true:
+		set {_line} to {_stream.buffer}.readLine()
+		if {_line} isn't set:
+			stop loop
+		if {_line} is "":
+			add 1 to {_i}
+		else:
+			set {_e::*} to {_line} split by ": "
+			set {turret::%{_i}%::%{_e::1}%} to {_e::2}
+	{_stream.input}.close()
+	{_stream.buffer}.close()
+
+	broadcast "{@P} &aTurret System Database Loaded &7- &b%difference between {_start} and now%"
+
+	wait {@Turret.Delay} seconds
+	loop {_list.on::*}:
+		tr_start(loop-value)
+
+command /getTurret():
+	trigger:
+		player is op
+		give 1 of tr_getItem() to player
+
+command /getParts():
+	trigger:
+		player is op
+		give 1 of tr_getPartsItem() to player
+
+# 터렛 제거
+on break:
+	event-block is Beacon
+	tr_delete(location of event-block)
+
+# 터렛 설치
+on place:
+	1 of player's tool is tr_getItem()
+	cancel event
+
+	set {_loc} to location of block at event-block
+	if block at (location 1 down location of {_loc}) is Air:
+		send "{@P} &a터렛&f은 지표면에만 설치가 가능합니다."
+		stop
+	# loop: x, z
+	loop -1 and 1:
+		loop -1 and 1:
+			set {_loc.temp} to {_loc}
+			set {_weight.x} to loop-value-1
+			set {_weight.z} to loop-value-2
+			add {_weight.x} to x coord of {_loc.temp}
+			add {_weight.z} to z coord of {_loc.temp}
+			if block at {_loc.temp} isn't Air:
+				send "{@P} &a터렛&f을 설치하기 위한 공간이 충분하지 않습니다."
+				stop
+	send "{@P} &a터렛&f이 설치되었습니다. &7(%x coord of {_loc}%, %y coord of {_loc}%, %z coord of {_loc}%)"
+
+	tr_register({_loc}, player)
+	uncancel event
+
+# 터렛 인벤토리
+on right click on Beacon:
+	set {_loc} to location of event-block
+	if tr_isExist({_loc}) is false:
+		stop
+	cancel event
+	tr_openGUI({_loc}, player)
+	tr_stop({_loc})
+
+# 터렛 GUI
+on inventory click:
+	name of current inventory of player is "{@P} &aTurret"
+	set {_slot} to index of clicked slot
+	set {_loc} to metadata value "turret" of player
+	set {_gui} to metadata value "turret.gui" of player
+
+	if {_gui} is "User" or "Entity":
+		cancel event
+		set {_page} to metadata value "turret.page" of player
+		set {_edit.add} to metadata value "turret.edit.add" of player
+		set {_edit.admin} to metadata value "turret.edit.admin" of player
+
+		if clicked inventory is player's inventory:
+			stop
+		# Head
+		if {_slot} < 3 * 9:
+			if clicked item isn't set:
+				stop
+
+			set {_p} to name of clicked item
+			replace "&a" with "" in {_p}
+			if {_gui} is "Entity":
+				if tr_hasEntity({_loc}, {_p}) is true:
+					tr_removeEntityAggression({_loc}, {_p})
+				else:
+					tr_addEntityAggression({_loc}, {_p})
+				tr_updateEntityGUI(player)
+				stop
+			set {_p} to {_p} parsed as offline player
+
+			set {_admin} to tr_getAdmin({_loc})
+			if {_admin} isn't name of player:
+				send "{@P} &a터렛 소유자&f만 수정이 가능합니다."
+				stop
+
+			if {_p} is {_admin}:
+				stop
+			if {_edit.add} is true:
+				if {@Turret.Offline.Check} is true:
+					{_p} is offline
+					send "{@P} 미접속 유저에게는 &a터렛 권한&f을 지급할 수 없습니다."
+					stop
+				if tr_hasPlayer({_loc}, {_p}) is true:
+					stop
+				tr_addPlayer({_loc}, {_p})
+				send "{@P} &a%{_p}%&f님에게 &a터렛 권한&f을 지급했습니다."
+				send "{@P} &a%player%&f님에 의해 &a터렛 권한&f이 지급되었습니다." to {_p}
+			else if {_edit.admin} is true:
+				tr_setAdmin({_loc}, {_p})
+				send "{@P} &a%{_p}%&f님을 &a터렛 소유자&f로 변경했습니다."
+				send "{@P} &a%player%&f님에 의해 &a터렛 소유자&f로 변경되었습니다." to {_p}
+			else:
+				tr_removePlayer({_loc}, {_p})
+				send "{@P} &a%{_p}%&f님의 &a터렛 권한&f을 회수했습니다."
+				send "{@P} &a%player%&f님에 의해 &a터렛 권한&f이 회수되었습니다." to {_p}
+
+		# Back
+		if {_slot} is (31)-1:
+			{_page} > 1
+			subtract 1 from {_page}
+
+		# Next
+		if {_slot} is (33)-1:
+			add 1 to {_page}
+
+		set metadata value "turret.page" of player to {_page}
+		if {_gui} is "User":
+			tr_updateUserGUI(player)
+		else:
+			tr_updateEntityGUI(player)
+		stop
+
+	if {_gui} is "Sub":
+		cancel event
+
+		# 유저 추가
+		if {_slot} is (2)-1:
+			tr_openUserGUI({_loc}, player, true, false)
+			
+		# 유저 제거
+		if {_slot} is (3)-1:
+			tr_openUserGUI({_loc}, player, false, false)
+
+		# 엔티티 공격성
+		if {_slot} is (5)-1:
+			tr_openEntityGUI({_loc}, player)
+
+		# 유저 공격성
+		if {_slot} is (6)-1:
+			set {_aggression} to tr_getUserAggression({_loc})
+			add 1 to {_aggression}
+			if {_aggression} > 3:
+				set {_aggression} to 1
+			tr_setUserAggression({_loc}, {_aggression})
+			tr_updateSettingGUI(player)
+
+		# 소유자 변경
+		if {_slot} is (8)-1:
+			tr_openUserGUI({_loc}, player, false, true)
+		stop
+
+	{_gui} is "Main"
+
+	if 1 of clicked item is {@Item.Bullet.Iron}, {@Item.Bullet.Gold}, Redstone Item or tr_getPartsItem():
+		set {_cancel} to false
+	if 1 of cursor slot of player is {@Item.Bullet.Iron}, {@Item.Bullet.Gold}, Redstone Item or tr_getPartsItem():
+		set {_cancel} to false
+	if {_cancel} isn't set:
+		cancel event
+
+	# 테두리 클릭 방지
+	if clicked item is {@Item.Gray}:
+		cancel event
+		stop
+
+	if clicked inventory isn't player's inventory:
+		# 아이템 클릭 방지
+		if {_slot} <= (18)-1:
+			cancel event
+
+		if {_slot} is (12)-1:
+			if tr_getStatus({_loc}) is true:
+				tr_setStatus({_loc}, false)
+				tr_updateGUI(player)
+			else:
+				if tr_getFuel({_loc}) > 0:
+					tr_setStatus({_loc}, true)
+					tr_updateGUI(player)
+					stop
+				send "{@P} &a연료&f가 부족합니다."
+			stop
+
+		# 연료 탱크
+		if {_slot} is (14)-1:
+			set {_cursor} to cursor slot of player
+			if 1 of {_cursor} is redstone item:
+				set {_amount} to item amount of {_cursor}
+				set {_fuel} to tr_getFuel({_loc})
+				set {_d} to {@Fuel.Max} - {_fuel}
+
+				# d: 최대 충전 가능 연료량
+				# amount: 현재 충전 가능 연료량
+				if {_amount} >= {_d}:
+					set cursor slot of player to ({_amount})-{_d} of redstone item
+					tr_setFuel({_loc}, {@Fuel.Max})
+				else:
+					set cursor slot of player to Air
+					tr_setFuel({_loc}, floor({_fuel} + {_amount}))
+				tr_updateGUI(player)
+			stop
+
+		# 파츠
+		if {_slot} is (15)-1:
+			set {_cursor} to cursor slot of player
+			if "%{_cursor}%" contains "none":
+				set {_cursor} to Air
+			if "%{_cursor}%" contains "Air":
+				tr_getParts({_loc}) isn't ""
+				tr_setParts({_loc}, "")
+				set cursor slot of player to 1 of tr_getPartsItem()
+				tr_updateGUI(player)
+			else if {_cursor} is tr_getPartsItem():
+				set cursor slot of player to Air
+				tr_setParts({_loc}, "유도탄")
+				tr_updateGUI(player)
+			stop
+
+		# 세팅
+		if {_slot} is (17)-1:
+			tr_openSettingGUI({_loc}, player)
+			stop
+
+	wait a tick
+	name of current inventory of player is "{@P} &aTurret"
+
+	# 탄환
+	set {_p} to player
+	set {_amount.iron} and {_amount.gold} to 0
+	loop 2 times:
+		loop 7 times:
+			set {_index} to (loop-num-1) * 9 + (loop-num-2) + (2 * 9)
+			set {_item} to slot {_index} of {@GUI}
+			if 1 of {_item} is {@Item.Bullet.Iron}:
+				add item amount of {_item} to {_amount.iron}
+				continue
+			if 1 of {_item} is {@Item.Bullet.Gold}:
+				add item amount of {_item} to {_amount.gold}
+				continue
+			{_item} isn't Air
+			if player's inventory can hold {_item}:
+				give {_item} to player
+			else:
+				drop {_item} at player
+			set slot {_index} of {@GUI} to Air
+	tr_setIron({_loc}, {_amount.iron})
+	tr_setGold({_loc}, {_amount.gold})
+
+	tr_updateGUI(player)
+
+# 터렛 GUI 손실 방지
+on inventory close:
+	name of current inventory of player is "{@P} &aTurret"
+	set {_loc} to metadata value "turret" of player
+	if metadata value "turret.gui" of player is "User" or "Entity":
+		wait a tick
+		tr_openSettingGUI({_loc}, player)
+		stop
+	if metadata value "turret.gui" of player is "Sub":
+		wait a tick
+		tr_openGUI({_loc}, player)
+		stop
+	metadata value "turret.gui" of player is "Main"
+
+	if tr_getStatus({_loc}) is true:
+		tr_start({_loc})
+
+	set {_p} to player
+	set {_iron} to amount of {@Item.Bullet.Iron} in {@GUI}
+	set {_gold} to amount of {@Item.Bullet.Gold} in {@GUI}
+
+	tr_setIron({_loc}, {_iron})
+	tr_setGold({_loc}, {_gold})
+
+	clear {turret_open::%{_loc}%}
+
+on load:
+	tr_reload()
