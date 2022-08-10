@@ -448,7 +448,7 @@ function tr_updateUserGUI(p: player):
 		loop tr_getPlayers({_loc}):
 			add loop-value parsed as offlineplayer to {_list::*}
 
-	set {_i} to (({_page})-1) * 3 * 7
+	set {_i} to (({_page})-1) * 3 * 9
 	loop 3 * 9 times:
 		add 1 to {_i}
 		if {_list::%{_i}%} isn't set:
